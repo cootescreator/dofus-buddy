@@ -305,7 +305,14 @@ function setSyncStatus(s,l){
 async function apiCall(action,payload={}){
   if(!SCRIPT_URL){openSetup();throw new Error('Non configuré');}
   setSyncStatus('loading','Sync…');
-  const res=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({action,payload})});
+  // On utilise GET + params URL pour éviter les blocages CORS de Apps Script
+  let url = SCRIPT_URL + '?action=' + encodeURIComponent(action);
+  if(action==='searchItems'){
+    url += '&q=' + encodeURIComponent(payload.q||'');
+  } else if(Object.keys(payload).length){
+    url += '&payload=' + encodeURIComponent(JSON.stringify(payload));
+  }
+  const res=await fetch(url);
   const data=await res.json();
   if(!data.ok)throw new Error(data.error||'Erreur');
   setSyncStatus('ok','Synchronisé ✓');
@@ -316,7 +323,7 @@ async function loadFromSheets(){
   if(!SCRIPT_URL){openSetup();return;}
   setSyncStatus('loading','Chargement…');
   try{
-    const res=await fetch(SCRIPT_URL+'?t='+Date.now());
+    const res=await fetch(SCRIPT_URL+'?action=getAll&t='+Date.now());
     const data=await res.json();
     if(!data.ok)throw new Error(data.error);
     state.ventes=(data.data.ventes||[]).map(v=>({...v,qty:+v.qty||1,achat:+v.achat||0,vente:+v.vente||0,reac:+v.reac||0}));
