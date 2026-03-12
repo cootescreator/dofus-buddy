@@ -106,52 +106,67 @@
   @media(max-width:700px){.grid-3{grid-template-columns:1fr 1fr;}.ca-main-value{font-size:32px;}.abo-item{flex-direction:column;align-items:flex-start;}}
 
   /* ── AUTOCOMPLETE ── */
-  .ac-wrap{position:relative;}
+  .ac-wrap{position:static;} /* static pour ne pas contraindre le dropdown dans la grille */
   .ac-dropdown{
-    position:absolute;top:calc(100% + 4px);left:0;right:0;
+    /* Fixé par rapport au viewport sur mobile, absolu sur desktop */
+    position:fixed;
     background:var(--dark3);border:1px solid var(--border-bright);
-    border-radius:4px;z-index:200;
-    box-shadow:0 8px 32px rgba(0,0,0,0.8);
-    max-height:320px;overflow-y:auto;
+    border-radius:6px;z-index:9999;
+    box-shadow:0 12px 40px rgba(0,0,0,0.9), 0 0 0 1px rgba(201,146,42,0.2);
+    max-height:60vh;          /* 60% de l'écran max */
+    overflow-y:scroll;        /* scroll toujours visible */
+    -webkit-overflow-scrolling:touch; /* scroll fluide iOS */
+    overscroll-behavior:contain;
     display:none;
+    min-width:280px;
+    width:min(420px, 92vw);   /* largeur fixe, jamais plus large que l'écran */
   }
   .ac-dropdown.open{display:block;}
   .ac-item{
     display:flex;align-items:center;gap:12px;
-    padding:10px 14px;cursor:pointer;
+    padding:12px 16px;cursor:pointer;
     border-bottom:1px solid rgba(201,146,42,0.08);
     transition:background 0.15s;
+    /* Touch target confortable */
+    min-height:56px;
   }
   .ac-item:last-child{border-bottom:none;}
-  .ac-item:hover,.ac-item.selected{background:rgba(201,146,42,0.1);}
+  .ac-item:hover,.ac-item.selected{background:rgba(201,146,42,0.12);}
   .ac-img{
-    width:36px;height:36px;flex-shrink:0;
+    width:40px;height:40px;flex-shrink:0;
     object-fit:contain;
     image-rendering:pixelated;
     filter:drop-shadow(0 0 4px rgba(201,146,42,0.4));
   }
   .ac-img-placeholder{
-    width:36px;height:36px;flex-shrink:0;
+    width:40px;height:40px;flex-shrink:0;
     background:rgba(201,146,42,0.06);border:1px solid var(--border);
     border-radius:3px;display:flex;align-items:center;justify-content:center;
-    font-size:18px;
+    font-size:20px;
   }
   .ac-info{flex:1;min-width:0;}
-  .ac-name{font-size:15px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .ac-meta{font-size:11px;color:var(--text-dim);margin-top:2px;display:flex;gap:8px;}
+  /* Noms sur plusieurs lignes — fini le texte tronqué */
+  .ac-name{
+    font-size:15px;color:var(--text);
+    white-space:normal;       /* retour à la ligne autorisé */
+    word-break:break-word;
+    line-height:1.3;
+  }
+  .ac-meta{font-size:11px;color:var(--text-dim);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap;}
   .ac-type{color:var(--gold);font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;}
   .ac-lvl{color:var(--text-dim);}
-  .ac-loading{padding:14px;text-align:center;color:var(--text-dim);font-size:13px;font-style:italic;}
-  .ac-none{padding:14px;text-align:center;color:var(--text-dim);font-size:13px;font-style:italic;}
+  .ac-loading{padding:16px;text-align:center;color:var(--text-dim);font-size:13px;font-style:italic;}
+  .ac-none{padding:16px;text-align:center;color:var(--text-dim);font-size:13px;font-style:italic;}
   .ac-selected-badge{
-    display:inline-flex;align-items:center;gap:8px;
+    display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;
     background:rgba(201,146,42,0.1);border:1px solid var(--border);
-    border-radius:3px;padding:4px 10px 4px 6px;
+    border-radius:3px;padding:6px 10px 6px 8px;
     margin-top:6px;font-size:13px;color:var(--text);
-    cursor:default;
+    cursor:default;max-width:100%;
   }
-  .ac-selected-badge img{width:22px;height:22px;object-fit:contain;image-rendering:pixelated;}
-  .ac-selected-badge .ac-clear{color:var(--text-dim);cursor:pointer;margin-left:4px;font-size:14px;line-height:1;}
+  .ac-selected-badge img{width:24px;height:24px;object-fit:contain;image-rendering:pixelated;flex-shrink:0;}
+  .ac-selected-badge span{word-break:break-word;}
+  .ac-selected-badge .ac-clear{color:var(--text-dim);cursor:pointer;margin-left:4px;font-size:16px;line-height:1;flex-shrink:0;}
   .ac-selected-badge .ac-clear:hover{color:#e06060;}
 </style>
 </head>
@@ -506,11 +521,43 @@ function acGetEmoji(typeStr) {
   return '🎒';
 }
 
+function acPositionDropdown() {
+  const input = document.getElementById('v-objet');
+  const dd    = document.getElementById('ac-dropdown');
+  const rect  = input.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const spaceAbove = rect.top;
+  const ddH   = Math.min(window.innerHeight * 0.6, 400);
+
+  dd.style.left  = rect.left + 'px';
+  dd.style.width = Math.min(420, window.innerWidth * 0.92) + 'px';
+
+  // Ouvre en dessous si assez de place, sinon au-dessus
+  if (spaceBelow >= 200 || spaceBelow >= spaceAbove) {
+    dd.style.top    = (rect.bottom + 4) + 'px';
+    dd.style.bottom = 'auto';
+    dd.style.maxHeight = Math.min(spaceBelow - 12, ddH) + 'px';
+  } else {
+    dd.style.bottom = (window.innerHeight - rect.top + 4) + 'px';
+    dd.style.top    = 'auto';
+    dd.style.maxHeight = Math.min(spaceAbove - 12, ddH) + 'px';
+  }
+}
+
 function acInput(val) {
   clearTimeout(acTimer);
   if (val.trim().length < 2) { acClose(); return; }
+  acPositionDropdown();
   acTimer = setTimeout(() => acSearch(val.trim()), 280);
 }
+
+// Repositionne si scroll ou resize
+window.addEventListener('scroll', () => {
+  if (document.getElementById('ac-dropdown').classList.contains('open')) acPositionDropdown();
+}, true);
+window.addEventListener('resize', () => {
+  if (document.getElementById('ac-dropdown').classList.contains('open')) acPositionDropdown();
+});
 
 async function acSearch(q) {
   const dd = document.getElementById('ac-dropdown');
