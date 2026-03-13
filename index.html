@@ -583,7 +583,7 @@ async function acSearch(q) {
     if (SCRIPT_URL) {
       const data = await apiCall('searchItems', { q });
       if (data && data.error) throw new Error(data.error);
-      items = data || [];
+      items = Array.isArray(data) ? data : [];
     } else {
       const url = `${DOFUSDB_API}/items?name.fr[$search]=${encodeURIComponent(q)}&lang=fr&$limit=8&$sort[level]=1`;
       const res = await fetch(url);
@@ -626,8 +626,8 @@ function acRender() {
     const typeStr = acNormType(item);
     const emoji   = acGetEmoji(typeStr);
     const lvl     = item.level ? `Niv. ${item.level}` : '';
-    const imgId   = item.iconId || item.id;
-    const imgUrl  = `${RENDERER}/items/${imgId}.png`;
+    // imgUrl direct depuis l'API dofusdu.de, sinon fallback renderer dofusdb
+    const imgUrl  = item.imgUrl || `${RENDERER}/items/${item.iconId || item.id}.png`;
 
     return `<div class="ac-item" data-idx="${i}" onmousedown="acSelect(${i})">
       <img class="ac-img" src="${imgUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">
@@ -651,8 +651,7 @@ function acSelect(idx) {
   const name    = acNormName(item);
   const typeStr = acNormType(item);
   const emoji   = acGetEmoji(typeStr);
-  const imgId   = item.iconId || item.id;
-  const imgUrl  = `${RENDERER}/items/${imgId}.png`;
+  const imgUrl  = item.imgUrl || `${RENDERER}/items/${item.iconId || item.id}.png`;
 
   // Remplir le champ texte (valeur utilisée pour l'enregistrement)
   const input = document.getElementById('v-objet');
