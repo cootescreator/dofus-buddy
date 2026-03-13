@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dofus — Gestionnaire de Commerce</title>
+<title>DofusBuddy — Gestionnaire de Commerce</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -105,6 +105,9 @@
   .empty-state::before{content:'⚔';display:block;font-size:32px;margin-bottom:12px;opacity:0.3;}
   @media(max-width:700px){.grid-3{grid-template-columns:1fr 1fr;}.ca-main-value{font-size:32px;}.abo-item{flex-direction:column;align-items:flex-start;}}
 
+  /* ── FORM 2 COLONNES ── */
+  .form-grid-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  @media(max-width:480px){.form-grid-2col{grid-template-columns:1fr;}}
   /* ── AUTOCOMPLETE ── */
   .ac-wrap{position:static;} /* static pour ne pas contraindre le dropdown dans la grille */
   .ac-dropdown{
@@ -194,7 +197,7 @@
 <div id="toast"></div>
 
 <header>
-  <div class="logo">Dofus Comptoir<span>Gestionnaire de Commerce</span></div>
+  <div class="logo">DofusBuddy<span>Gestionnaire de Commerce</span></div>
   <div class="header-right">
     <span class="sync-label"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">Non connecté</span></span>
     <button class="btn btn-sm" style="border-color:rgba(201,146,42,0.5);background:rgba(201,146,42,0.08);" onclick="openSetup()">⚙</button>
@@ -214,24 +217,27 @@
     <div class="info-banner">
       <div>Frais de mise en vente : <span>2%</span></div>
       <div>Frais de réactualisation : <span>1%</span></div>
-      <div>Marge nette = Vente×(1−2%) − Achat − Vente×1%×réactu</div>
+      <div>Marge nette = Vente×(1−2%) − Achat − Vente×1%×réactu×prix réactualisé</div>
     </div>
     <div id="stats-ventes" class="grid-3" style="margin-bottom:24px"></div>
     <div class="card">
       <div class="card-title">Enregistrer une vente</div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Objet</label>
-          <div class="ac-wrap">
-            <input type="text" id="v-objet" placeholder="Rechercher un objet…" autocomplete="off" oninput="acInput(this.value)" onkeydown="acKeydown(event)">
-            <div class="ac-dropdown" id="ac-dropdown"></div>
-          </div>
-          <div id="ac-badge" style="display:none"></div>
+      <!-- Moteur de recherche full-width -->
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Objet</label>
+        <div class="ac-wrap">
+          <input type="text" id="v-objet" placeholder="Rechercher un objet…" autocomplete="off" oninput="acInput(this.value)" onkeydown="acKeydown(event)" style="width:100%">
+          <div class="ac-dropdown" id="ac-dropdown"></div>
         </div>
+        <div id="ac-badge" style="display:none"></div>
+      </div>
+      <!-- 6 champs en 2 colonnes / 3 lignes -->
+      <div class="form-grid-2col">
         <div class="form-group"><label>Prix d'achat (kamas)</label><input type="number" id="v-achat" placeholder="50000" min="0"></div>
         <div class="form-group"><label>Prix de vente (kamas)</label><input type="number" id="v-vente" placeholder="80000" min="0"></div>
         <div class="form-group"><label>Quantité</label><input type="number" id="v-qty" value="1" min="1"></div>
         <div class="form-group"><label>Réactualisations</label><input type="number" id="v-reac" value="0" min="0"></div>
+        <div class="form-group"><label>Prix réactualisé (kamas)</label><input type="number" id="v-reac-prix" placeholder="0" min="0"></div>
         <div class="form-group"><label>Personnage</label><input type="text" id="v-perso" placeholder="Nom du perso"></div>
       </div>
       <div id="calc-preview" class="calc-preview" style="display:none"></div>
@@ -356,8 +362,11 @@ function showSection(id,btn){
   render();
 }
 
-function calc(achat,vente,qty,reac){
-  const fv=vente*FV, fr=vente*FR*reac;
+function calc(achat,vente,qty,reac,reacPrix){
+  // reacPrix = prix auquel l'objet était réactualisé (base de calcul des frais réactu)
+  const prixReac = reacPrix > 0 ? reacPrix : vente; // si non renseigné, on prend vente
+  const fv=vente*FV;
+  const fr=prixReac*FR*reac;  // Vente×1%×réactu×prix_réactualisé
   const recette=vente-fv-fr;
   const marge=recette*qty-achat*qty;
   const pct=achat>0?(marge/(achat*qty))*100:0;
@@ -369,17 +378,18 @@ function updatePreview(){
   const v=+document.getElementById('v-vente').value||0;
   const q=+document.getElementById('v-qty').value||1;
   const r=+document.getElementById('v-reac').value||0;
+  const rp=+document.getElementById('v-reac-prix').value||0;
   const w=document.getElementById('calc-preview');
   if(!a&&!v){w.style.display='none';return;}
   w.style.display='grid';
-  const c=calc(a,v,q,r);
+  const c=calc(a,v,q,r,rp);
   w.innerHTML=`<div class="calc-item"><div class="v">${fmt(c.fv*q)}</div><div class="l">Frais HDV (2%)</div></div>
     <div class="calc-item"><div class="v">${fmt(c.fr*q)}</div><div class="l">Réactu (×${r})</div></div>
     <div class="calc-item"><div class="v">${fmt(c.recette*q)}</div><div class="l">Recette nette</div></div>
     <div class="calc-item ${c.marge>=0?'pos':'neg'}"><div class="v">${fmt(c.marge)}</div><div class="l">Marge nette</div></div>
     <div class="calc-item ${c.pct>=0?'pos':'neg'}"><div class="v">${c.pct.toFixed(1)}%</div><div class="l">Marge %</div></div>`;
 }
-['v-achat','v-vente','v-qty','v-reac'].forEach(id=>document.getElementById(id).addEventListener('input',updatePreview));
+['v-achat','v-vente','v-qty','v-reac','v-reac-prix'].forEach(id=>document.getElementById(id).addEventListener('input',updatePreview));
 
 async function addVente(){
   const objet=document.getElementById('v-objet').value.trim();
@@ -387,16 +397,17 @@ async function addVente(){
   const vente=+document.getElementById('v-vente').value;
   const qty=+document.getElementById('v-qty').value||1;
   const reac=+document.getElementById('v-reac').value||0;
+  const reacPrix=+document.getElementById('v-reac-prix').value||0;
   const perso=document.getElementById('v-perso').value.trim();
   if(!objet||!achat||!vente){toast('Objet, achat et vente requis',true);return;}
-  const c=calc(achat,vente,qty,reac);
-  const entry={id:Date.now(),date:new Date().toLocaleDateString('fr-FR'),objet,perso,qty,achat,vente,reac,fraisVente:c.fv,fraisReactu:c.fr,marge:c.marge,margePct:c.pct};
+  const c=calc(achat,vente,qty,reac,reacPrix);
+  const entry={id:Date.now(),date:new Date().toLocaleDateString('fr-FR'),objet,perso,qty,achat,vente,reac,reacPrix,fraisVente:c.fv,fraisReactu:c.fr,marge:c.marge,margePct:c.pct};
   const btn=document.getElementById('btn-add-vente');
   btn.disabled=true;btn.textContent='Envoi…';
   try{
     await apiCall('addVente',entry);
     state.ventes.unshift(entry);
-    ['v-objet','v-achat','v-vente','v-reac','v-perso'].forEach(id=>document.getElementById(id).value='');
+    ['v-objet','v-achat','v-vente','v-reac','v-reac-prix','v-perso'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('v-qty').value=1;
     document.getElementById('calc-preview').style.display='none';
     toast('✓ Vente enregistrée');render();
@@ -451,7 +462,7 @@ function renderVentes(){
   if(!state.ventes.length){tb.innerHTML='<tr><td colspan="11"><div class="empty-state">Aucune vente enregistrée</div></td></tr>';st.innerHTML='';return;}
   let tCA=0,tM=0,tF=0;
   tb.innerHTML=state.ventes.map(v=>{
-    const c=calc(v.achat,v.vente,v.qty,v.reac);
+    const c=calc(v.achat,v.vente,v.qty,v.reac,v.reacPrix||0);
     tCA+=v.vente*v.qty;tM+=c.marge;tF+=(c.fv+c.fr)*v.qty;
     return`<tr><td>${v.date}</td><td>${v.objet}</td><td>${v.perso||'—'}</td><td>${v.qty}</td><td class="gold-val">${fmt(v.achat*v.qty)}</td><td class="gold-val">${fmt(v.vente*v.qty)}</td><td>${fmt(c.fv*v.qty)}</td><td>${fmt(c.fr*v.qty)}</td><td class="${c.marge>=0?'positive':'negative'}">${fmt(c.marge)}</td><td class="${c.pct>=0?'positive':'negative'}">${c.pct.toFixed(1)}%</td><td><button class="btn btn-sm btn-danger" onclick="deleteVente('${v.id}')">✕</button></td></tr>`;
   }).join('');
